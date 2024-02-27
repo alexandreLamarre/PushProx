@@ -1,4 +1,3 @@
-FROM alpine:3.15.4
+FROM alpine:3.18.6
 COPY bin/pushprox-proxy /usr/bin
 CMD ["pushprox-proxy"]
-
