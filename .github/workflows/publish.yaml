@@ -1,0 +1,90 @@
+name : Publish Images
+
+on:
+  push:
+    tags:
+      - "*"
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  push:
+    name : Build and push PushProx images 
+    runs-on : ubuntu-latest
+    strategy:
+      matrix:
+          include:
+            - platform: linux/amd64
+              arch: amd64
+            - platform: linux/arm64
+              arch: arm64
+    steps:
+      - name : Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name : Build, test & validate
+        run : make CI
+      - name: Build and push PushProx client image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./package/client/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-client:${{ env.TAG_NAME }}-client-${{ matrix.arch }}
+      - name: Build and push PushProx proxy image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./package/proxy/Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-${{ matrix.arch }}
+      - name: Compute checksums
+        run: cd dist/artifacts && sha256sum * > CHECKSUMsum-${{ matrix.arch }}.txt
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-checksum-${{ matrix.arch }}-${{ env.TAG_NAME }}
+          path: ./dist/artifacts/
+  manifest:
+    needs: push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create and push PushProx client manifest images
+      uses: Noelware/docker-manifest-action@v0.4.1 
+      with:
+          inputs: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-client
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-client-amd64, ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-client-arm64
+          push: true
+    - name: Create and push PushProx proxy manifest images
+      uses: Noelware/docker-manifest-action@v0.4.1 
+      with:
+          inputs: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-amd64, ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-arm64
+          push: true
+          ammend : true
+    - name : Get amd64 release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: binary-checksum-arm64-${{ env.TAG_NAME }}
+        path: ./dist/artifacts
+    - name : Get arm64 release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: binary-checksum-arm64-${{ env.TAG_NAME }}
+        path: ./dist/artifacts
+    - name: Create GH release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./dist/artifacts/CHECKSUMsum-amd64.txt
+          ./dist/artifacts/CHECKSUMsum-arm64.txt
+          ./dist/artifacts/pushproxy-client-amd64
+          ./dist/artifacts/pushproxy-client-arm64
+          ./dist/artifacts/pushproxy-proxy-amd64
+          ./dist/artifacts/pushproxy-proxy-arm64
