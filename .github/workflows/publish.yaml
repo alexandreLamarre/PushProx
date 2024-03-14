@@ -1,0 +1,58 @@
+name : Publish Images
+
+on:
+  push:
+    tags:
+      - "*"
+
+env:
+  REGISTRY: docker.io
+
+jobs:
+  push:
+    name : Build and push PushProx images 
+    runs-on : ubuntu-latest
+    steps:
+      - name : Checkout repository
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name : Build, test & validate
+        run : make CI
+      - name: Build and push PushProx client image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.proxy
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-client:${{ env.TAG_NAME }}-client
+          platforms: linux/amd64,linux/arm64
+      - name: Build and push PushProx proxy image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.client
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy
+          platforms : linux/amd64,linux/arm64
+  manifest:
+    needs: push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create and push PushProx client manifest images
+      uses: Noelware/docker-manifest-action@v0.4.1 
+      with:
+          inputs: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client
+          images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client-amd64, ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client-arm64
+          push: true
+    - name: Create and push PushProx proxy manifest images
+      uses: Noelware/docker-manifest-action@v0.4.1 
+      with:
+          inputs: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy
+          images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-amd64, ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-arm64
+          push: true
+          ammend : true
