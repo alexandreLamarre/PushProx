@@ -49,20 +49,3 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/alex7285/pushprox-proxy:${{ env.TAG_NAME }}-proxy
           platforms : linux/amd64,linux/arm64
-  manifest:
-    needs: push
-    runs-on: ubuntu-latest
-    steps:
-    - name: Create and push PushProx client manifest images
-      uses: Noelware/docker-manifest-action@v0.4.1 
-      with:
-          inputs: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client
-          images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client-amd64, ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-client-arm64
-          push: true
-    - name: Create and push PushProx proxy manifest images
-      uses: Noelware/docker-manifest-action@v0.4.1 
-      with:
-          inputs: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy
-          images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-amd64, ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-arm64
-          push: true
-          ammend : true
