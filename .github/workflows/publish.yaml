@@ -29,7 +29,7 @@ jobs:
           context: .
           file: Dockerfile.proxy
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-client:${{ env.TAG_NAME }}-client-${{ matrix.arch }}
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-client:${{ env.TAG_NAME }}-client
           platforms: linux/amd64,linux/arm64
       - name: Build and push PushProx proxy image
         uses: docker/build-push-action@v5
@@ -37,15 +37,8 @@ jobs:
           context: .
           file: Dockerfile.client
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy-${{ matrix.arch }}
+          tags: ${{ env.REGISTRY }}/${{ env.OWNER }}/pushprox-proxy:${{ env.TAG_NAME }}-proxy
           platforms : linux/amd64,linux/arm64
-      - name: Compute checksums
-        run: cd dist/artifacts && sha256sum * > CHECKSUMsum-${{ matrix.arch }}.txt
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: binary-checksum-${{ matrix.arch }}-${{ env.TAG_NAME }}
-          path: ./dist/artifacts/
   manifest:
     needs: push
     runs-on: ubuntu-latest
